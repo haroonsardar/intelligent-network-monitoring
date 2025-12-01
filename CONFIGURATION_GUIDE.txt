@@ -1,0 +1,81 @@
+# INTELLIGENT NETWORK MONITORING SYSTEM CONFIGURATION GUIDE
+
+## PROJECT OVERVIEW
+# Goal: To create a secure LAN environment with traffic segmentation, Access Control List (ACL) based security, and real-time monitoring capability.
+# Security Rule: Deny access for PC1 (Guest) to the Server, while allowing PC0 (Admin) access.
+
+## I. DEVICE LIST AND PHYSICAL CONNECTIONS
+# Devices Used:
+# - Router: Cisco 2911 (or 4331)
+# - Switch: Cisco 2960
+# - End Devices: PC0 (Admin), PC1 (Guest), Server0
+
+# Connections (Straight-Through Cable):
+# 1. Switch <--> Router (GigabitEthernet0/0)
+# 2. PC0 <--> Switch
+# 3. PC1 <--> Switch
+# 4. Server <--> Router (GigabitEthernet0/1)  <-- This provides network SEGMENTATION
+
+## II. IP ADDRESSING SCHEME
+
+# LAN 1 (PCs Network)
+# - Router (Gi0/0):  192.168.1.1  (Gateway for PCs)
+# - PC0 (Admin):    192.168.1.2
+# - PC1 (Guest):    192.168.1.3
+
+# LAN 2 (Server Network)
+# - Router (Gi0/1):  192.168.2.1  (Gateway for Server)
+# - Server0:        192.168.2.10
+
+# Subnet Mask for all devices: 255.255.255.0
+
+## III. DEVICE CONFIGURATION STEPS
+
+# A. Router Configuration (CLI Commands)
+# This sequence sets up the IPs and the ACL rule.
+
+Router> enable
+Router# configure terminal
+Router(config)# hostname R1
+
+# 1. Configure LAN 1 (PCs side)
+R1(config)# interface GigabitEthernet0/0
+R1(config-if)# ip address 192.168.1.1 255.255.255.0
+R1(config-if)# no shutdown
+R1(config-if)# exit
+
+# 2. Configure LAN 2 (Server side)
+R1(config)# interface GigabitEthernet0/1
+R1(config-if)# ip address 192.168.2.1 255.255.255.0
+R1(config-if)# no shutdown
+R1(config-if)# exit
+
+# 3. Apply ACL (The Security Feature)
+# ACL 100: Deny PC1 (192.168.1.3) access to Server (192.168.2.10)
+R1(config)# access-list 100 deny ip host 192.168.1.3 host 192.168.2.10
+
+# ACL 100: Permit all other traffic (Mandatory for ACLs to work)
+R1(config)# access-list 100 permit ip any any
+
+# 4. Apply ACL to the PCs Interface (Inbound Traffic)
+R1(config)# interface GigabitEthernet0/0
+R1(config-if)# ip access-group 100 in
+R1(config-if)# end
+R1# write memory
+
+# B. PC and Server Configuration (Desktop GUI)
+# Go to Desktop -> IP Configuration and set the values as per the IP Addressing Scheme table.
+
+## IV. VERIFICATION AND TESTING
+
+# 1. Security Test (ACL Check)
+# - From PC1 (Guest): Open Command Prompt and type: ping 192.168.2.10
+# - Expected Result: "Destination host unreachable" (Security successful)
+
+# - From PC0 (Admin): Open Command Prompt and type: ping 192.168.2.10
+# - Expected Result: "Reply from 192.168.2.10" (Access successful)
+
+# 2. Monitoring Test (Wireshark)
+# - On any PC: Install and run Wireshark (capture on Ethernet adapter).
+# - Open CMD and run: ping www.google.com -t (Or ping any external IP repeatedly).
+# - Expected Result: Wireshark will show a large volume of "ICMP Echo Request" packets, confirming the ability to detect floods.
